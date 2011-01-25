@@ -54,16 +54,20 @@ def get_all_task_settings(panel, setting_names):
 @Panel.register
 def restore_task_settings(panel, restore_data):
     # restore_data = dict: { taskname: (restore_dict, erase_list), ... }
-    panel.logger.debug('policy.control: restore_task_settings()')
+    panel.logger.debug('policy.control: restore_task_settings()\nrestore_data: {0}'.format(restore_data))
+    
     for taskname, (restore, erase) in restore_data.iteritems():
         # TODO: catch taskname not found exceptions
         taskcls = _get_task_class(taskname)
         for attr,v in restore.iteritems():
+            panel.logger.debug('restoring: {0}.{1} = {2}'.format(taskname, attr, v))
             setattr(taskcls, attr, v)
         for attr in erase:
+            panel.logger.debug('erasing: {0}.{1}'.format(taskname, attr))
             try:
                 delattr(taskcls, attr)
             except AttributeError:
+                panel.logger.warning('restore_task_settings(): could not delete {0}.{1}'.format(taskname, attr))
                 pass
 
 #==============================================================================#
@@ -71,19 +75,19 @@ def restore_task_settings(panel, restore_data):
 def get_task_attribute(panel, taskname, attrname):
     panel.logger.debug('policy.control: get_task_attribute()')
     try:
-        task = _get_task_class(taskname)
+        taskcls = _get_task_class(taskname)
     except KeyError:
         panel.logger.error("Attempted to get %s for unknown task %s" % (
             attrname, taskname), exc_info=sys.exc_info())
         return {"error": "unknown task"}
     
-    if not hasattr(task, attrname):
+    if not hasattr(taskcls, attrname):
         msg = "Attempted to get an unknown attribute %s for task %s" % (
                attrname, taskname)
         panel.logger.error(msg)
         return {"error": "unknown attribute"}
         
-    return getattr(task, attrname)
+    return getattr(taskcls, attrname)
 
 
 @Panel.register
@@ -93,19 +97,19 @@ def set_task_attribute(panel, tasknames, attrname, value):
         tasknames = [tasknames]
     for taskname in tasknames:
         try:
-            task = _get_task_class(taskname)
+            taskcls = _get_task_class(taskname)
         except KeyError:
             panel.logger.error("Attempted to set %s for unknown task %s" % (
                 attrname, taskname), exc_info=sys.exc_info())
             return {"error": "unknown task"}
         
-        if not hasattr(task, attrname):
+        if not hasattr(taskcls, attrname):
             msg = "Attempted to set an unknown attribute %s for task %s" % (
                    attrname, taskname)
             panel.logger.error(msg)
             return {"error": "unknown attribute"}
         
-        setattr(task, attrname, value)
+        setattr(taskcls, attrname, value)
     return {"ok": "new %s set successfully" % attrname}
 
 #==============================================================================#
